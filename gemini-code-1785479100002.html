@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVC Обучающая игра</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --bg-grad: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 100%);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 15px;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', -apple-system, sans-serif;
+            background: var(--bg-grad);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #1e293b;
+            user-select: none;
+        }
+
+        .game-app {
+            width: 100%;
+            max-width: 520px;
+            background: #ffffff;
+            border-radius: 28px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border: 4px solid #ffffff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Навигация по уровням */
+        .level-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: #f1f5f9;
+            padding: 6px;
+            border-radius: 20px;
+        }
+
+        .nav-btn {
+            flex: 1;
+            padding: 10px 6px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-weight: bold;
+            font-size: 13px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn.active {
+            background: #ffffff;
+            color: var(--primary);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        }
+
+        /* Общие контейнеры уровней */
+        .level-screen {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .level-screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        /* УРОВЕНЬ 1: Флэш-карточки */
+        .card-container {
+            width: 100%;
+            height: 300px;
+            perspective: 1000px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            border-radius: 24px;
+            box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08);
+        }
+
+        .card-container.is-flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 24px;
+            border: 3px solid #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            background-color: #ffffff;
+        }
+
+        .card-front {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+
+        .word-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .word-text {
+            font-size: 56px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: #1e293b;
+        }
+
+        .speaker-btn {
+            background: #e0e7ff;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.15);
+        }
+
+        .speaker-btn:hover {
+            background: #c7d2fe;
+            transform: scale(1.1);
+        }
+
+        .speaker-btn:active {
+            transform: scale(0.95);
+        }
+
+        .hint {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        .card-back img, .quiz-img, .builder-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 16px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 6px 12px rgba(79, 70, 229, 0.25);
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn:active { transform: scale(0.97); }
+
+        .btn.secondary {
+            background-color: #94a3b8;
+            box-shadow: 0 6px 12px rgba(148, 163, 184, 0.25);
+        }
+
+        /* УРОВЕНЬ 2: Квиз */
+        .quiz-img-wrapper {
+            height: 200px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 2px dashed #e2e8f0;
+        }
+
+        .quiz-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .quiz-opt-btn {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            padding: 16px;
+            font-size: 22px;
+            font-weight: bold;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            color: #334155;
+        }
+
+        .quiz-opt-btn:hover {
+            border-color: var(--primary);
+            background: #f0f5ff;
+        }
+
+        .quiz-opt-btn.correct {
+            background: var(--success) !important;
+            color: white !important;
+            border-color: var(--success) !important;
+            animation: pulse 0.4s ease;
+        }
+
+        .quiz-opt-btn.wrong {
+            background: var(--danger) !important;
+            color: white !important;
+            border-color: var(--danger) !important;
+            animation: shake 0.3s ease;
+        }
+
+        /* УРОВЕНЬ 3: Составитель слов */
+        .builder-slots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            min-height: 60px;
+        }
+
+        .letter-slot {
+            width: 54px;
+            height: 58px;
+            border: 3px dashed #cbd5e1;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 800;
+            background: #f8fafc;
+            color: var(--primary);
+            text-transform: uppercase;
+        }
+
+        .letter-slot.filled {
+            border-style: solid;
+            border-color: var(--primary);
+            background: #e0e7ff;
+        }
+
+        .letters-pool {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .tile {
+            width: 52px;
+            height: 54px;
+            background: #ffffff;
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 4px 0 #cbd5e1;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.1s;
+        }
+
+        .tile:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #cbd5e1;
+        }
+
+        .tile.used {
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        /* Экраны завершения */
+        .win-screen {
+            text-align: center;
+            padding: 30px 10px;
+        }
+
+        .win-title {
+            font-size: 28px;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
+        /* Анимации */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        @media (max-width: 480px) {
+            .card-container { height: 250px; }
+            .word-text { font-size: 44px; }
+            .quiz-img-wrapper { height: 160px; }
+            .quiz-opt-btn { font-size: 18px; padding: 12px; }
+            .letter-slot, .tile { width: 44px; height: 48px; font-size: 22px; }
+            .speaker-btn { width: 40px; height: 40px; font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-app">
+    <!-- Шапка выбора уровней -->
+    <div class="level-nav">
+        <button class="nav-btn active" onclick="switchLevel(1)">1. Карточки</button>
+        <button class="nav-btn" onclick="switchLevel(2)">2. Квиз</button>
+        <button class="nav-btn" onclick="switchLevel(3)">3. Буквы</button>
+    </div>
+
+    <!-- УРОВЕНЬ 1: Карточки -->
+    <div id="level1" class="level-screen active">
+        <div class="status-bar">
+            <span id="l1-counter">Карточка 1 из 30</span>
+        </div>
+        <div class="card-container" onclick="flipCard()">
+            <div class="card-inner" id="cardInner">
+                <div class="card-face card-front">
+                    <div class="word-wrapper">
+                        <div class="word-text" id="wordFront">cat</div>
+                        <button class="speaker-btn" onclick="speakCurrentWord(event)" title="Послушать">🔊</button>
+                    </div>
+                    <div class="hint">Нажми, чтобы посмотреть картинку 🔄</div>
+                </div>
+                <div class="card-face card-back">
+                    <img id="imgBack" src="" alt="CVC Image">
+                </div>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="btn secondary" onclick="prevL1()">Назад</button>
+            <button class="btn" onclick="nextL1()">Вперёд</button>
+        </div>
+    </div>
+
+    <!-- УРОВЕНЬ 2: Квиз -->
+    <div id="level2" class="level-screen">
+        <div class="status-bar">
+            <span>Выбери слово</span>
+            <span id="l2-counter">Вопрос 1/10</span>
+        </div>
+        <div id="l2-game-content">
+            <div class="quiz-img-wrapper">
+                <img id="quizImg" class="quiz-img" src="" alt="Quiz Image">
+            </div>
+            <div class="quiz-options" id="quizOptions"></div>
+        </div>
+        <div id="l2-win" class="win-screen" style="display:none;">
+            <div class="win-title">🎉 Молодец!</div>
+            <p>Ты отлично прошёл квиз!</p>
+            <button class="btn" onclick="startLevel2()">Играть ещё раз</button>
+        </div>
+    </div>
+
+    <!-- УРОВЕНЬ 3: Составитель слов -->
+    <div id="level3" class="level-screen">
+        <div class="status-bar">
+            <span>Собери слово</span>
+            <span id="l3-counter">Слово 1/7</span>
+        </div>
+        <div id="l3-game-content">
+            <div class="quiz-img-wrapper">
+                <img id="builderImg" class="builder-img" src="" alt="Builder Image">
+            </div>
+            <div class="builder-slots" id="builderSlots"></div>
+            <div class="letters-pool" id="lettersPool"></div>
+            <button class="btn secondary" style="margin-top: 15px; width: 100%;" onclick="resetCurrentWordL3()">Сбросить буквы 🔄</button>
+        </div>
+        <div id="l3-win" class="win-screen" style="display:none;">
+            <div class="win-title">🏆 Превосходно!</div>
+            <p>Все слова собраны правильно!</p>
+            <button class="btn" onclick="startLevel3()">Собрать снова</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // База данных слов
+    const cardsData = [
+        {"word": "cat", "img": "28.jpg"},
+        {"word": "bat", "img": "30.jpg"},
+        {"word": "bag", "img": "31.jpg"},
+        {"word": "cap", "img": "32.jpg"},
+        {"word": "dog", "img": "33.jpg"},
+        {"word": "den", "img": "34.jpg"},
+        {"word": "egg", "img": "35.jpg"},
+        {"word": "fan", "img": "36.jpg"},
+        {"word": "fat", "img": "37.jpg"},
+        {"word": "rod", "img": "38.jpg"},
+        {"word": "red", "img": "39.jpg"},
+        {"word": "hot", "img": "40.jpg"},
+        {"word": "hat", "img": "41.jpg"},
+        {"word": "hen", "img": "42.jpg"},
+        {"word": "man", "img": "43.jpg"},
+        {"word": "mop", "img": "44.jpg"},
+        {"word": "map", "img": "45.jpg"},
+        {"word": "mat", "img": "46.jpg"},
+        {"word": "pan", "img": "47.jpg"},
+        {"word": "pig", "img": "48.jpg"},
+        {"word": "pen", "img": "49.jpg"},
+        {"word": "pot", "img": "50.jpg"},
+        {"word": "rat", "img": "51.jpg"},
+        {"word": "top", "img": "52.jpg"},
+        {"word": "ten", "img": "53.jpg"},
+        {"word": "tag", "img": "54.jpg"},
+        {"word": "net", "img": "56.jpg"},
+        {"word": "tent", "img": "58.jpg"},
+        {"word": "ant", "img": "60.jpg"},
+        {"word": "big", "img": "big.jpg"}
+    ];
+
+    // Функция произношения слов (Web Speech API)
+    function speakText(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel(); // Остановка предыдущего воспроизведения
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.85; // Чуть сниженный темп для дошкольников
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function shuffle(array) {
+        let arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    // Переключение между уровнями
+    function switchLevel(lvl) {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        
+        document.querySelectorAll('.nav-btn').forEach((b, idx) => {
+            b.classList.toggle('active', idx === lvl - 1);
+        });
+        document.querySelectorAll('.level-screen').forEach((sc, idx) => {
+            sc.classList.toggle('active', idx === lvl - 1);
+        });
+
+        if (lvl === 1) initLevel1();
+        if (lvl === 2) startLevel2();
+        if (lvl === 3) startLevel3();
+    }
+
+    /* ==========================================
+       УРОВЕНЬ 1: Карточки
+    ========================================== */
+    let deckL1 = [];
+    let indexL1 = 0;
+    const cardContainer = document.querySelector('.card-container');
+
+    function initLevel1() {
+        deckL1 = shuffle(cardsData);
+        indexL1 = 0;
+        updateCardL1();
+    }
+
+    function updateCardL1() {
+        cardContainer.classList.remove('is-flipped');
+        setTimeout(() => {
+            const card = deckL1[indexL1];
+            document.getElementById('wordFront').textContent = card.word;
+            document.getElementById('imgBack').src = "img/" + card.img;
+            document.getElementById('l1-counter').textContent = `Карточка ${indexL1 + 1} из ${deckL1.length}`;
+            
+            // Озвучка при появлении новой карточки
+            speakText(card.word);
+        }, 150);
+    }
+
+    function speakCurrentWord(e) {
+        if (e) e.stopPropagation(); // Не переворачиваем карточку при клике на динамик
+        const word = deckL1[indexL1].word;
+        speakText(word);
+    }
+
+    function flipCard() { 
+        cardContainer.classList.toggle('is-flipped');
+        // Озвучиваем слово, если вернулись на лицевую сторону
+        if (!cardContainer.classList.contains('is-flipped')) {
+            speakText(deckL1[indexL1].word);
+        }
+    }
+
+    function nextL1() {
+        if (indexL1 < deckL1.length - 1) { indexL1++; updateCardL1(); } 
+        else { initLevel1(); }
+    }
+    function prevL1() {
+        if (indexL1 > 0) { indexL1--; updateCardL1(); }
+    }
+
+    /* ==========================================
+       УРОВЕНЬ 2: Квиз
+    ========================================== */
+    let quizQuestions = [];
+    let quizIndex = 0;
+
+    function startLevel2() {
+        quizQuestions = shuffle(cardsData).slice(0, 10);
+        quizIndex = 0;
+        document.getElementById('l2-game-content').style.display = 'block';
+        document.getElementById('l2-win').style.display = 'none';
+        renderQuizQuestion();
+    }
+
+    function renderQuizQuestion() {
+        const q = quizQuestions[quizIndex];
+        document.getElementById('l2-counter').textContent = `Вопрос ${quizIndex + 1}/10`;
+        document.getElementById('quizImg').src = "img/" + q.img;
+
+        let wrongAnswers = cardsData.filter(c => c.word !== q.word).map(c => c.word);
+        wrongAnswers = shuffle(wrongAnswers).slice(0, 3);
+        let options = shuffle([q.word, ...wrongAnswers]);
+
+        const container = document.getElementById('quizOptions');
+        container.innerHTML = '';
+
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-opt-btn';
+            btn.textContent = opt;
+            btn.onclick = () => checkQuizAnswer(btn, opt, q.word);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkQuizAnswer(btn, chosen, correct) {
+        const buttons = document.querySelectorAll('.quiz-opt-btn');
+        buttons.forEach(b => b.style.pointerEvents = 'none');
+
+        // Озвучиваем нажатое слово
+        speakText(chosen);
+
+        if (chosen === correct) {
+            btn.classList.add('correct');
+            setTimeout(() => {
+                quizIndex++;
+                if (quizIndex < quizQuestions.length) {
+                    renderQuizQuestion();
+                } else {
+                    document.getElementById('l2-game-content').style.display = 'none';
+                    document.getElementById('l2-win').style.display = 'block';
+                    speakText("Great job!");
+                }
+            }, 1000);
+        } else {
+            btn.classList.add('wrong');
+            setTimeout(() => {
+                btn.classList.remove('wrong');
+                buttons.forEach(b => b.style.pointerEvents = 'auto');
+            }, 600);
+        }
+    }
+
+    /* ==========================================
+       УРОВЕНЬ 3: Составитель слов
+    ========================================== */
+    let builderWords = [];
+    let builderIndex = 0;
+    let userWord = [];
+
+    function startLevel3() {
+        builderWords = shuffle(cardsData).slice(0, 7);
+        builderIndex = 0;
+        document.getElementById('l3-game-content').style.display = 'block';
+        document.getElementById('l3-win').style.display = 'none';
+        renderBuilderQuestion();
+    }
+
+    function renderBuilderQuestion() {
+        const item = builderWords[builderIndex];
+        userWord = [];
+        document.getElementById('l3-counter').textContent = `Слово ${builderIndex + 1}/7`;
+        document.getElementById('builderImg').src = "img/" + item.img;
+
+        const slotsContainer = document.getElementById('builderSlots');
+        slotsContainer.innerHTML = '';
+        for (let i = 0; i < item.word.length; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'letter-slot';
+            slot.id = `slot-${i}`;
+            slotsContainer.appendChild(slot);
+        }
+
+        const alphabet = "abcdefghijklmnopqrstuvwxyz";
+        let extraLetters = Array.from({length: 2}, () => alphabet[Math.floor(Math.random() * alphabet.length)]);
+        let pool = shuffle([...item.word.split(''), ...extraLetters]);
+
+        const poolContainer = document.getElementById('lettersPool');
+        poolContainer.innerHTML = '';
+
+        pool.forEach((char, idx) => {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.textContent = char;
+            tile.dataset.char = char;
+            tile.dataset.id = idx;
+            tile.onclick = () => selectLetter(tile, char, item.word);
+            poolContainer.appendChild(tile);
+        });
+    }
+
+    function selectLetter(tile, char, targetWord) {
+        if (userWord.length >= targetWord.length || tile.classList.contains('used')) return;
+
+        // Озвучиваем нажатую букву
+        speakText(char);
+
+        tile.classList.add('used');
+        userWord.push({ char, tileId: tile.dataset.id });
+
+        const currentSlot = document.getElementById(`slot-${userWord.length - 1}`);
+        currentSlot.textContent = char;
+        currentSlot.classList.add('filled');
+
+        if (userWord.length === targetWord.length) {
+            const constructed = userWord.map(u => u.char).join('');
+            if (constructed === targetWord) {
+                setTimeout(() => {
+                    speakText(targetWord); // Озвучиваем готовое слово целиком
+                }, 300);
+
+                setTimeout(() => {
+                    builderIndex++;
+                    if (builderIndex < builderWords.length) {
+                        renderBuilderQuestion();
+                    } else {
+                        document.getElementById('l3-game-content').style.display = 'none';
+                        document.getElementById('l3-win').style.display = 'block';
+                        speakText("Well done!");
+                    }
+                }, 1200);
+            } else {
+                setTimeout(() => {
+                    resetCurrentWordL3();
+                }, 600);
+            }
+        }
+    }
+
+    function resetCurrentWordL3() {
+        userWord = [];
+        document.querySelectorAll('.letter-slot').forEach(s => {
+            s.textContent = '';
+            s.classList.remove('filled');
+        });
+        document.querySelectorAll('.tile').forEach(t => t.classList.remove('used'));
+    }
+
+    // Старт
+    initLevel1();
+</script>
+</body>
+</html>
